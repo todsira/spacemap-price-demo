@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thailand GIS Squares</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <button id="panel-toggle" class="panel-toggle" aria-controls="panel" aria-expanded="true" title="Layers">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5Zm-10 9 10 5 10-5M2 16l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+  </button>
+
+  <aside id="panel" class="panel">
+    <header class="panel-head">
+      <h1>Thailand GIS Squares</h1>
+      <p class="sub">10 × 10 km analysis grid · OpenStreetMap data</p>
+    </header>
+
+    <section class="block">
+      <h2>Base map</h2>
+      <div id="basemaps" class="seg"></div>
+    </section>
+
+    <section class="block">
+      <h2>Overlays</h2>
+      <div id="overlays" class="overlay-list"></div>
+      <label class="slider">
+        <span>Contour opacity</span>
+        <input id="contour-opacity" type="range" min="0.2" max="1" step="0.05" value="0.6">
+      </label>
+    </section>
+
+    <section class="block">
+      <h2>Square layers</h2>
+      <div id="layer-cards"></div>
+    </section>
+
+    <footer class="panel-foot" id="foot"></footer>
+  </aside>
+
+  <div id="coords" class="coords">—</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="data/layers.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
