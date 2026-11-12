@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=e1df770ce5">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <meta name="description" content="Thailand map with switchable 10 x 10 km analysis squares for ports, sea blocks and Thailand's borders with Myanmar, Cambodia, Laos and Malaysia.">
 </head>
@@ -24,6 +24,11 @@
       <p class="sub">10 × 10 km analysis grid · OpenStreetMap data</p>
     </header>
 
+    <section class="block block-layers">
+      <h2>Square layers</h2>
+      <div id="layer-cards"></div>
+    </section>
+
     <section class="block">
       <h2>Base map</h2>
       <div id="basemaps" class="seg"></div>
@@ -38,18 +43,13 @@
       </label>
     </section>
 
-    <section class="block">
-      <h2>Square layers</h2>
-      <div id="layer-cards"></div>
-    </section>
-
     <footer class="panel-foot" id="foot"></footer>
   </aside>
 
   <div id="coords" class="coords">—</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script src="data/layers.js"></script>
-  <script src="js/app.js"></script>
+  <script src="data/layers.js?v=e1df770ce5"></script>
+  <script src="js/app.js?v=e1df770ce5"></script>
 </body>
 </html>

@@ -52,6 +52,8 @@ python3 -m venv .venv && .venv/bin/pip install -r build/requirements.txt
 .venv/bin/python build/make_squares.py      # add --no-enrich to skip the geocode/elevation API calls
 ```
 
+`make_squares.py` finishes by running `build/stamp_version.py`. That script adds a content hash (`?v=…`) to the CSS, JS and data links in `index.html`, so browsers always load the latest files after a deploy. If you edit `web/js/app.js` or `web/css/style.css` by hand, run `.venv/bin/python build/stamp_version.py` before committing.
+
 To change the port coordinates, the seaward direction of each block, the mainland-overlap limit, the border stepping mode or the border layers (`BORDERS`: which countries, how far out to sea), edit `build/config.py`.
 
 Each square is built in a transverse Mercator projection centred on the square itself, so every side is 10.000 km on the ground. The build prints the largest side error, which is under 1 m.

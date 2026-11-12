@@ -242,7 +242,16 @@
         <label for="${id}"><input type="checkbox" id="${id}" checked><span class="swatch"></span>${esc(L0.title)}</label>
         <button class="zoom-btn" type="button">Zoom</button>
       </div>
-      <div class="stats">${stats}</div>${groups}${note}`;
+      <button class="card-meta" type="button" aria-expanded="false">
+        <span>${num(s.count)} ${s.count === 1 ? "square" : "squares"} · ${num(s.total_area_km2)} km²</span><span class="chev">Details</span>
+      </button>
+      <div class="card-body"><div class="stats">${stats}</div>${groups}${note}</div>`;
+
+    const meta = card.querySelector(".card-meta");
+    meta.onclick = () => {
+      const open = card.classList.toggle("open");
+      meta.setAttribute("aria-expanded", open);
+    };
 
     card.querySelector("input").onchange = (e) => {
       if (e.target.checked) gj.addTo(map); else map.removeLayer(gj);

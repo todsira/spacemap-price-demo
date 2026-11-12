@@ -20,6 +20,7 @@ from shapely.ops import linemerge, substring, unary_union
 
 sys.path.insert(0, str(Path(__file__).parent))
 import config as C  # noqa: E402
+import stamp_version  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "build" / "sources"
@@ -629,6 +630,7 @@ def main():
     }
     (OUT / "layers.js").write_text("window.GIS_DATA = " + json.dumps(bundle, ensure_ascii=False) + ";\n")
     print(f"wrote {OUT / 'layers.js'}")
+    stamp_version.main()
 
 
 if __name__ == "__main__":
