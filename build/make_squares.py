@@ -295,9 +295,9 @@ def layer_points(ref):
     return feats
 
 
-def load_border_utm():
+def load_border_utm(countries):
     b = gpd.read_file(SRC / "ne_boundaries/ne_10m_admin_0_boundary_lines_land.shp")
-    sel = b[b.ADM0_LEFT.isin(["Thailand", "Myanmar"]) & b.ADM0_RIGHT.isin(["Thailand", "Myanmar"])]
+    sel = b[b.ADM0_LEFT.isin(countries) & b.ADM0_RIGHT.isin(countries)]
     merged = linemerge(unary_union(list(sel.geometry)))
     parts = [merged] if merged.geom_type == "LineString" else list(merged.geoms)
     # chain parts north -> south (start of each part from the northern end)
@@ -312,24 +312,24 @@ def load_border_utm():
     return LineString([f(x, y) for x, y in coords]), epsg, len(parts)
 
 
-def maritime_extension_utm(land_line, epsg, ref):
-    """Continue the land border along Natural Earth's maritime border line (down the Kra
-    estuary and into the Andaman Sea) until it is BORDER_SEA_EXTENSION_KM from the mainland."""
-    if C.BORDER_SEA_EXTENSION_KM <= 0:
+def maritime_extension_utm(land_line, epsg, ref, extension_km):
+    """Continue the land border along the Natural Earth maritime border line that starts at its
+    end (e.g. down the Kra estuary into the Andaman Sea) until it is extension_km from the mainland."""
+    if extension_km <= 0:
         return None
     m = gpd.read_file(SRC / "ne_maritime/ne_10m_admin_0_boundary_lines_maritime_indicator.shp",
                       bbox=C.REGION_BBOX).to_crs(epsg)
     end = Point(land_line.coords[-1])
     lines = [q for g in m.geometry for q in getattr(g, "geoms", [g])]
     sea = min(lines, key=lambda q: q.distance(end))
-    if sea.distance(end) > 2000:
+    if sea.distance(end) > 3000:
         print("  WARNING no maritime border line starts at the end of the land border")
         return None
     if Point(sea.coords[0]).distance(end) > Point(sea.coords[-1]).distance(end):
         sea = LineString(list(sea.coords)[::-1])
     x, y = end.x, end.y
     mainland = ref.mainland_near(x, y, epsg, 250_000)
-    target = C.BORDER_SEA_EXTENSION_KM * 1000
+    target = extension_km * 1000
     d = 0.0
     while d < sea.length and mainland.distance(sea.interpolate(d)) < target:
         d += 100
@@ -366,8 +366,13 @@ def border_centers(line):
         else:
             d = d2
     end = line.interpolate(L)
-    if max(abs(end.x - cur.x), abs(end.y - cur.y)) > HALF:
-        centers.append(L)
+    tail = max(abs(end.x - cur.x), abs(end.y - cur.y))
+    if tail > HALF:
+        # The line ends inside the next square's footprint: place that last square edge-to-edge
+        # with the previous one (in the direction of the end point) so it covers the end
+        # without overlapping. Returned as an explicit point rather than a distance.
+        k = step / tail
+        centers.append(Point(cur.x + (end.x - cur.x) * k, cur.y + (end.y - cur.y) * k))
     return centers
 
 
@@ -378,9 +383,9 @@ def frange(a, b, s):
         x += s
 
 
-def layer_border(ref):
-    land_line, epsg, nparts = load_border_utm()
-    sea_line = maritime_extension_utm(land_line, epsg, ref)
+def layer_border(ref, cfg):
+    land_line, epsg, nparts = load_border_utm(cfg["countries"])
+    sea_line = maritime_extension_utm(land_line, epsg, ref, cfg["sea_extension_km"])
     land_km = land_line.length / 1000
     sea_km = sea_line.length / 1000 if sea_line else 0.0
     line = LineString(list(land_line.coords) + list(sea_line.coords)[1:]) if sea_line else land_line
@@ -388,12 +393,16 @@ def layer_border(ref):
     inv = to_wgs(epsg).transform
     feats = []
     for k, d in enumerate(border_centers(line), start=1):
-        pt = line.interpolate(d)
+        if isinstance(d, Point):  # end square placed past the line's end
+            pt, d = d, line.length
+        else:
+            pt = line.interpolate(d)
         lon, lat = inv(pt.x, pt.y)
         section = "land" if d <= land_line.length + 1 else "maritime"
-        f, _, _ = make_square(lon, lat, ref, "border", f"BORDER-{k:03d}",
-                              {"group": "TH-MM", "along_border_km": round(d / 1000, 1),
-                               "border_section": section})
+        extra = {"group": cfg["group"], "along_border_km": round(d / 1000, 1), "border_section": section}
+        if section == "maritime":
+            extra["maritime_label"] = cfg["sea_label"]
+        f, _, _ = make_square(lon, lat, ref, cfg["key"], f"{cfg['id_prefix']}-{k:03d}", extra)
         feats.append(f)
 
     def wgs(g):
@@ -416,7 +425,8 @@ def enrich_geocode(features):
     sess = requests.Session()
     sess.headers["User-Agent"] = C.USER_AGENT
     todo = [(f, lang) for f in features for lang in ("en", "th")
-            if f"{f['properties']['center_lat']},{f['properties']['center_lon']},{lang}" not in cache]
+            if "error" in cache.get(f"{f['properties']['center_lat']},{f['properties']['center_lon']},{lang}",
+                                    {"error": "missing"})]
     for n, (f, lang) in enumerate(todo, 1):
         pr = f["properties"]
         key = f"{pr['center_lat']},{pr['center_lon']},{lang}"
@@ -424,7 +434,10 @@ def enrich_geocode(features):
             r = sess.get(C.NOMINATIM_URL, params={
                 "lat": pr["center_lat"], "lon": pr["center_lon"], "format": "jsonv2",
                 "zoom": 14, "accept-language": lang}, timeout=30)
-            cache[key] = r.json() if r.ok else {"error": r.status_code}
+            if r.ok:
+                cache[key] = r.json()
+            else:  # transient failures (429 / 503) are not cached, so the next build retries them
+                print(f"    geocode HTTP {r.status_code} for {key}")
         except requests.RequestException as e:
             print("    geocode failed", key, e)
         if n % 20 == 0 or n == len(todo):
@@ -542,10 +555,13 @@ def main():
     l2 = layer_sea_blocks(ref)
     print("layer 3: point square")
     l3 = layer_points(ref)
-    print("layer 4: Thailand-Myanmar border")
-    l4, land_km, sea_km, border_land, border_sea = layer_border(ref)
+    borders = []
+    for cfg in C.BORDERS:
+        print(f"layer {cfg['title']}")
+        feats, land_km, sea_km, line_land, line_sea = layer_border(ref, cfg)
+        borders.append((cfg, feats, land_km, sea_km, line_land, line_sea))
 
-    all_feats = l1 + l2 + l3 + l4
+    all_feats = l1 + l2 + l3 + [f for b in borders for f in b[1]]
     print(f"enriching {len(all_feats)} squares (geocode + elevation, cached) ...")
     if "--no-enrich" not in sys.argv:
         enrich_geocode(all_feats)
@@ -563,15 +579,17 @@ def main():
                                             f"{C.SEA_BLOCK_OUT * C.SQUARE_KM:g}")},
         {"key": "points", "title": "3. Point 14.722987, 100.873950", "file": "layer3_point.geojson",
          "features": l3, "summary": summarize(l3)},
-        {"key": "border", "title": "4. Thailand-Myanmar border", "file": "layer4_border.geojson",
-         "features": l4,
-         "summary": summarize(l4, border_length_km=round(land_km + sea_km, 1),
+    ] + [
+        {"key": cfg["key"], "title": cfg["title"], "file": cfg["file"], "features": feats,
+         "summary": summarize(feats, border_length_km=round(land_km + sea_km, 1),
                               land_border_km=round(land_km, 1),
                               sea_extension_km=round(sea_km, 1),
-                              sea_extension_offshore_km=C.BORDER_SEA_EXTENSION_KM,
+                              sea_extension_offshore_km=cfg["sea_extension_km"],
+                              sea_label=cfg["sea_label"],
                               maritime_squares=sum(f["properties"]["border_section"] == "maritime"
-                                                   for f in l4),
-                              step_mode=C.BORDER_STEP_MODE)},
+                                                   for f in feats),
+                              step_mode=C.BORDER_STEP_MODE)}
+        for cfg, feats, land_km, sea_km, _, _ in borders
     ]
 
     for L in layers:
@@ -588,8 +606,8 @@ def main():
         "generated": time.strftime("%Y-%m-%d %H:%M"),
         "ports": C.PORTS,
         "points": C.POINTS,
-        "border_line_land": border_land,
-        "border_line_sea": border_sea,
+        "border_lines": [{"key": cfg["key"], "group": cfg["group"], "land": line_land, "sea": line_sea}
+                         for cfg, _, _, _, line_land, line_sea in borders],
         "layers": [{k: L[k] for k in ("key", "title", "file", "summary")}
                    | {"geojson": {"type": "FeatureCollection", "features": L["features"]}} for L in layers],
     }

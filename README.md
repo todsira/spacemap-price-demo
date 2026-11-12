@@ -5,7 +5,8 @@ A web map of Thailand and the surrounding countries that works like Google Maps 
 1. **Port squares**: one square centred on each of the 4 main ports: ท่าเรือแหลมฉบัง, ท่าเรือมาบตาพุด, ท่าเรือสัตหีบ and ท่าเรือน้ำลึกสงขลา.
 2. **Port sea blocks**: a 30 × 30 km block of 3 × 3 squares for each port. The block extends 30 km out to sea and is 30 km wide, centred on the port. Each column of 3 squares slides along the seaward direction to sit as close to the mainland as possible, with each square overlapping the mainland by at most 10% (`SEA_MAX_MAINLAND_FRACTION`). Islands are ignored, and blocks may overlap (Sattahip / Map Ta Phut).
 3. **Point square**: one square centred on 14.722987, 100.873950.
-4. **Thailand–Myanmar border**: north-up squares centred on the border line, running from north to south, with about 5 km on each side of the line. Past the end of the land border, at the head of the Kra River estuary, the squares follow Natural Earth's maritime border line down the estuary and out to 12 nm (22.2 km, set by `BORDER_SEA_EXTENSION_KM`) from the mainland.
+4. **Thailand–Myanmar border**: north-up squares centred on the border line, running from north to south, with about 5 km on each side of the line. Past the end of the land border, at the head of the Kra River estuary, the squares follow Natural Earth's maritime border line down the estuary and out to 12 nm (22.2 km, set by `sea_extension_km` in `BORDERS`) from the mainland.
+5. **Thailand–Cambodia border**: built the same way as layer 4. The squares run from the Laos tripoint at the Emerald Triangle to the coast at Hat Lek, Trat, then follow Natural Earth's median line in the Gulf of Thailand to 12 nm offshore. The maritime boundary there is disputed, and the median line is only an indicator.
 
 Hovering over a square shows its location, province and district (in English and Thai), land/sea %, the countries it covers, elevation or water depth, and the distance to the coast or port. Clicking a square pins the details, including its corners and UTM coordinates. Each layer has a summary card showing the number of squares, total area, square size and the layer's overall extent. The base maps are street, satellite, topographic (with contours) and light grey. The overlays are contour lines, hillshade relief, labels, the border line and markers.
 
@@ -49,7 +50,7 @@ python3 -m venv .venv && .venv/bin/pip install -r build/requirements.txt
 .venv/bin/python build/make_squares.py      # add --no-enrich to skip the geocode/elevation API calls
 ```
 
-To change the port coordinates, the seaward direction of each block, the mainland-overlap limit, the border stepping mode or how far the border extends out to sea, edit `build/config.py`.
+To change the port coordinates, the seaward direction of each block, the mainland-overlap limit, the border stepping mode or the border layers (`BORDERS`: which countries, how far out to sea), edit `build/config.py`.
 
 Each square is built in a transverse Mercator projection centred on the square itself, so every side is 10.000 km on the ground. The build prints the largest side error, which is under 1 m.
 

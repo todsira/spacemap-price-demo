@@ -81,10 +81,10 @@
     pane: "labels", maxZoom: 19, attribution: "Labels © Esri",
   });
   const toLatLng = (line) => line.map(([lon, lat]) => [lat, lon]);
-  const borderLine = L.layerGroup([
-    L.polyline(toLatLng(DATA.border_line_land), { color: "#7a1fa2", weight: 2, dashArray: "6 4", interactive: false }),
-    L.polyline(toLatLng(DATA.border_line_sea), { color: "#7a1fa2", weight: 2, dashArray: "2 5", interactive: false }),
-  ]);
+  const borderLine = L.layerGroup(DATA.border_lines.flatMap((b) => [
+    L.polyline(toLatLng(b.land), { color: "#7a1fa2", weight: 2, dashArray: "6 4", interactive: false }),
+    L.polyline(toLatLng(b.sea), { color: "#7a1fa2", weight: 2, dashArray: "2 5", interactive: false }),
+  ]));
   const portMarkers = L.layerGroup(DATA.ports.map((p) =>
     L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "port-icon", iconSize: [12, 12] }), zIndexOffset: 1000 })
       .bindTooltip(`<b>${p.name_th}</b><br>${p.name_en}<br>${fmtLL(p.lat, p.lon)}`, { direction: "top", offset: [0, -8] })
@@ -97,7 +97,7 @@
     { label: "Contour lines (OpenTopoMap)", layer: contours, on: false },
     { label: "Hillshade relief", layer: hillshade, on: false },
     { label: "Place names & boundaries", layer: labels, on: false },
-    { label: "TH–MM border line (Natural Earth)", layer: borderLine, on: true },
+    { label: "TH–MM & TH–KH border lines (Natural Earth)", layer: borderLine, on: true },
     { label: "Port & point markers", layer: portMarkers, on: true },
   ];
   const ovBox = document.getElementById("overlays");
@@ -125,6 +125,7 @@
     sea_blocks: "Port sea block",
     points: "Point square",
     border: "TH–MM border square",
+    border_kh: "TH–KH border square",
   };
 
   function placeLine(p) {
@@ -160,7 +161,7 @@
       r.push(["Column shift", `${num(Math.abs(t), 2)} km ${t >= 0 ? "seaward" : "landward"} of the port line`]);
     }
     if (p.along_border_km != null) r.push(["Along border", `${num(p.along_border_km, 1)} km from northern end`]);
-    if (p.border_section === "maritime") r.push(["Border type", "Maritime (Kra estuary / Andaman Sea)"]);
+    if (p.border_section === "maritime") r.push(["Border type", `Maritime (${esc(p.maritime_label)})`]);
     if (full) {
       r.push(["UTM", `${p.utm_zone} · E ${num(p.utm_e)} · N ${num(p.utm_n)}`]);
       Object.entries(p.corners).forEach(([k, [la, lo]]) => r.push([`Corner ${k}`, fmtLL(la, lo)]));
@@ -231,7 +232,7 @@
     }
     if (s.step_mode === "chebyshev") {
       note = '<div class="note">North-up squares centred on the border line; each next square starts where the line leaves the previous one, so squares touch without overlapping.' +
-        (s.sea_extension_km ? ` Past the land border the line follows the maritime border down the Kra estuary to ${num(s.sea_extension_offshore_km, 1)} km (12 nm) offshore (${s.maritime_squares} squares).` : "") + "</div>";
+        (s.sea_extension_km ? ` Past the land border the line follows the maritime border (${esc(s.sea_label)}) to ${num(s.sea_extension_offshore_km, 1)} km (12 nm) offshore (${s.maritime_squares} squares).` : "") + "</div>";
     }
 
     card.innerHTML = `

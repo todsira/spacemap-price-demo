@@ -59,15 +59,38 @@ POINTS = [
     },
 ]
 
-# Item 4: Thailand-Myanmar border.
+# Items 4 + 5: border layers. Squares are north-up, centred on the Natural Earth land border,
+# starting at its northern end. Past the end of the land border at the coast, the squares
+# continue along Natural Earth's maritime border line until it is `sea_extension_km` from the
+# mainland (22.2 km = 12 nautical miles, territorial sea; 0 = stop at the land border).
+BORDERS = [
+    {
+        "key": "border",
+        "title": "4. Thailand-Myanmar border",
+        "file": "layer4_border.geojson",
+        "group": "TH-MM",
+        "id_prefix": "BORDER",
+        "countries": ("Thailand", "Myanmar"),
+        "sea_extension_km": 22.2,
+        "sea_label": "Kra estuary / Andaman Sea",
+    },
+    {
+        "key": "border_kh",
+        "title": "5. Thailand-Cambodia border",
+        "file": "layer5_border_kh.geojson",
+        "group": "TH-KH",
+        "id_prefix": "BKH",
+        "countries": ("Thailand", "Cambodia"),
+        "sea_extension_km": 22.2,
+        "sea_label": "Gulf of Thailand (median line; boundary is disputed)",
+    },
+]
+
+# Stepping rule for the border squares:
 # "chebyshev": next square is centred where the border leaves the previous square,
 #              so consecutive squares touch edge-to-edge without overlapping.
 # "along":     a square every 10 km measured along the (winding) border line.
 BORDER_STEP_MODE = "chebyshev"
-# Past the end of the land border (head of the Kra River estuary) the squares continue along
-# Natural Earth's TH-MM maritime border line until it is this far from the mainland.
-# 22.2 km = 12 nautical miles (territorial sea). Set to 0 to stop at the land border.
-BORDER_SEA_EXTENSION_KM = 22.2
 
 # Region used to clip the land / country data (lon_min, lat_min, lon_max, lat_max)
 REGION_BBOX = (92.0, 4.0, 110.0, 24.0)
