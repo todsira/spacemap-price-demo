@@ -48,6 +48,14 @@ html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); 
   font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
   margin: 0 0 8px; font-weight: 600;
 }
+.block-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.block-head h2 { margin: 0; }
+.bulk { display: flex; gap: 4px; }
+.bulk button {
+  font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: transparent; color: var(--ink); cursor: pointer;
+}
+.bulk button:hover { border-color: var(--accent); color: var(--accent); }
 .seg { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .seg button {
   font: inherit; padding: 7px 8px; border-radius: 8px; border: 1px solid var(--line);

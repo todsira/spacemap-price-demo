@@ -194,7 +194,8 @@
   const hoverStyle = { weight: 3.5, fillOpacity: 0.45 };
   const cardsBox = document.getElementById("layer-cards");
   let squareLayers = {};
-  const layerOff = new Set();  // layer keys switched off; kept when changing mode
+  // layer keys switched off; kept when changing mode. All start off on first load.
+  const layerOff = new Set(DATA.modes[0].layers.map((l) => l.key));
   const layerOpen = new Set(); // layer keys with "Details" expanded; kept when changing mode
 
   // Main switch: the same layers built with a different square size
@@ -242,6 +243,7 @@
   function makeCard(L0, gj, mode) {
     const s = L0.summary;
     const card = document.createElement("div");
+    card.dataset.key = L0.key;
     card.className = "card" + (layerOff.has(L0.key) ? " off" : "") + (layerOpen.has(L0.key) ? " open" : "");
     const id = `cb-${L0.key}`;
     const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
@@ -292,11 +294,7 @@
       if (open) layerOpen.add(L0.key); else layerOpen.delete(L0.key);
     };
 
-    card.querySelector("input").onchange = (e) => {
-      if (e.target.checked) gj.addTo(map); else map.removeLayer(gj);
-      if (e.target.checked) layerOff.delete(L0.key); else layerOff.add(L0.key);
-      card.classList.toggle("off", !e.target.checked);
-    };
+    card.querySelector("input").onchange = (e) => setLayer(L0.key, e.target.checked);
     card.querySelector(".zoom-btn").onclick = () => {
       if (!map.hasLayer(gj)) card.querySelector("input").click();
       map.fitBounds(gj.getBounds(), { ...PAD, maxZoom: 11 });
@@ -310,6 +308,17 @@
     });
     return card;
   }
+
+  function setLayer(key, on) {
+    const gj = squareLayers[key];
+    const card = cardsBox.querySelector(`[data-key="${key}"]`);
+    if (on) { layerOff.delete(key); gj.addTo(map); } else { layerOff.add(key); map.removeLayer(gj); }
+    card.querySelector("input").checked = on;
+    card.classList.toggle("off", !on);
+    ["ports", "points"].forEach((k) => map.hasLayer(squareLayers[k]) && squareLayers[k].bringToFront());
+  }
+  document.getElementById("layers-all").onclick = () => Object.keys(squareLayers).forEach((k) => setLayer(k, true));
+  document.getElementById("layers-none").onclick = () => Object.keys(squareLayers).forEach((k) => setLayer(k, false));
 
   renderMode(currentMode);
 
