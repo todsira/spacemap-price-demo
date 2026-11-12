@@ -7,6 +7,8 @@ A web map of Thailand and the surrounding countries that works like Google Maps 
 3. **Point square**: one square centred on 14.722987, 100.873950.
 4. **Thailand–Myanmar border**: north-up squares centred on the border line, running from north to south, with about 5 km on each side of the line. Past the end of the land border, at the head of the Kra River estuary, the squares follow Natural Earth's maritime border line down the estuary and out to 12 nm (22.2 km, set by `sea_extension_km` in `BORDERS`) from the mainland.
 5. **Thailand–Cambodia border**: built the same way as layer 4. The squares run from the Laos tripoint at the Emerald Triangle to the coast at Hat Lek, Trat, then follow Natural Earth's median line in the Gulf of Thailand to 12 nm offshore. The maritime boundary there is disputed, and the median line is only an indicator.
+6. **Thailand–Laos border**: built the same way as layer 4. The squares run from the Golden Triangle to the Emerald Triangle, including the Mekong sections. The border is landlocked, so there is no sea extension.
+7. **Thailand–Malaysia border**: built the same way, but running west to east. It starts 12 nm offshore on Natural Earth's median line in the Andaman Sea, crosses the land border at Satun/Perlis, and ends at the Golok river mouth at Tak Bai. Natural Earth has no maritime line on the Gulf of Thailand side, so the squares stop at the coast there.
 
 Hovering over a square shows its location, province and district (in English and Thai), land/sea %, the countries it covers, elevation or water depth, and the distance to the coast or port. Clicking a square pins the details, including its corners and UTM coordinates. Each layer has a summary card showing the number of squares, total area, square size and the layer's overall extent. The base maps are street, satellite, topographic (with contours) and light grey. The overlays are contour lines, hillshade relief, labels, the border line and markers.
 
@@ -40,7 +42,7 @@ To preview locally with the same headers as production, run `npx wrangler dev`, 
 
 Related files:
 - `wrangler.toml` holds the Worker name and the assets directory. The `name` must match the Worker's name in the dashboard.
-- `web/_headers` sets the security headers and caching. The Content-Security-Policy only allows the map tile hosts the app uses: OpenStreetMap, OpenTopoMap and Esri. If you add a new base map, add its host to `img-src`.
+- `web/_headers` sets the security headers and caching. Data, scripts and styles are served with `Cache-Control: no-cache`, so browsers pick up a new deploy immediately but still reuse unchanged files (they get a quick "not modified" reply). The Content-Security-Policy only allows the map tile hosts the app uses: OpenStreetMap, OpenTopoMap and Esri. If you add a new base map, add its host to `img-src`.
 
 ## Rebuild the data
 

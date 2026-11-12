@@ -59,8 +59,8 @@ POINTS = [
     },
 ]
 
-# Items 4 + 5: border layers. Squares are north-up, centred on the Natural Earth land border,
-# starting at its northern end. Past the end of the land border at the coast, the squares
+# Items 4-7: border layers. Squares are north-up, centred on the Natural Earth land border,
+# starting at its northern end (or western end with "start": "west"). Past the end of the land border at the coast, the squares
 # continue along Natural Earth's maritime border line until it is `sea_extension_km` from the
 # mainland (22.2 km = 12 nautical miles, territorial sea; 0 = stop at the land border).
 BORDERS = [
@@ -73,6 +73,7 @@ BORDERS = [
         "countries": ("Thailand", "Myanmar"),
         "sea_extension_km": 22.2,
         "sea_label": "Kra estuary / Andaman Sea",
+        "start_label": "Golden Triangle (northern end)",
     },
     {
         "key": "border_kh",
@@ -83,6 +84,30 @@ BORDERS = [
         "countries": ("Thailand", "Cambodia"),
         "sea_extension_km": 22.2,
         "sea_label": "Gulf of Thailand (median line; boundary is disputed)",
+        "start_label": "Emerald Triangle (Laos tripoint)",
+    },
+    {
+        "key": "border_la",
+        "title": "6. Thailand-Laos border",
+        "file": "layer6_border_la.geojson",
+        "group": "TH-LA",
+        "id_prefix": "BLA",
+        "countries": ("Thailand", "Laos"),
+        "sea_extension_km": 0,  # landlocked
+        "sea_label": "",
+        "start_label": "Golden Triangle (northern end)",
+    },
+    {
+        "key": "border_my",
+        "title": "7. Thailand-Malaysia border",
+        "file": "layer7_border_my.geojson",
+        "group": "TH-MY",
+        "id_prefix": "BMY",
+        "countries": ("Thailand", "Malaysia"),
+        "start": "west",  # runs west -> east, from the Andaman Sea side to the Gulf of Thailand
+        "sea_extension_km": 22.2,
+        "sea_label": "Andaman Sea / Strait of Malacca (median line)",
+        "start_label": "12 nm offshore in the Andaman Sea (western end)",
     },
 ]
 

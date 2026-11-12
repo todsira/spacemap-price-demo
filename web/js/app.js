@@ -83,7 +83,7 @@
   const toLatLng = (line) => line.map(([lon, lat]) => [lat, lon]);
   const borderLine = L.layerGroup(DATA.border_lines.flatMap((b) => [
     L.polyline(toLatLng(b.land), { color: "#7a1fa2", weight: 2, dashArray: "6 4", interactive: false }),
-    L.polyline(toLatLng(b.sea), { color: "#7a1fa2", weight: 2, dashArray: "2 5", interactive: false }),
+    ...b.sea.map((line) => L.polyline(toLatLng(line), { color: "#7a1fa2", weight: 2, dashArray: "2 5", interactive: false })),
   ]));
   const portMarkers = L.layerGroup(DATA.ports.map((p) =>
     L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "port-icon", iconSize: [12, 12] }), zIndexOffset: 1000 })
@@ -97,7 +97,7 @@
     { label: "Contour lines (OpenTopoMap)", layer: contours, on: false },
     { label: "Hillshade relief", layer: hillshade, on: false },
     { label: "Place names & boundaries", layer: labels, on: false },
-    { label: "TH–MM & TH–KH border lines (Natural Earth)", layer: borderLine, on: true },
+    { label: "Border lines: MM, KH, LA, MY (Natural Earth)", layer: borderLine, on: true },
     { label: "Port & point markers", layer: portMarkers, on: true },
   ];
   const ovBox = document.getElementById("overlays");
@@ -126,6 +126,8 @@
     points: "Point square",
     border: "TH–MM border square",
     border_kh: "TH–KH border square",
+    border_la: "TH–LA border square",
+    border_my: "TH–MY border square",
   };
 
   function placeLine(p) {
@@ -160,7 +162,7 @@
       const t = p.column_offset_km;
       r.push(["Column shift", `${num(Math.abs(t), 2)} km ${t >= 0 ? "seaward" : "landward"} of the port line`]);
     }
-    if (p.along_border_km != null) r.push(["Along border", `${num(p.along_border_km, 1)} km from northern end`]);
+    if (p.along_border_km != null) r.push(["Along border", `${num(p.along_border_km, 1)} km from ${esc(p.along_from || "northern end")}`]);
     if (p.border_section === "maritime") r.push(["Border type", `Maritime (${esc(p.maritime_label)})`]);
     if (full) {
       r.push(["UTM", `${p.utm_zone} · E ${num(p.utm_e)} · N ${num(p.utm_n)}`]);

@@ -312,18 +312,22 @@ def load_border_utm(countries):
     return LineString([f(x, y) for x, y in coords]), epsg, len(parts)
 
 
-def maritime_extension_utm(land_line, epsg, ref, extension_km):
-    """Continue the land border along the Natural Earth maritime border line that starts at its
-    end (e.g. down the Kra estuary into the Andaman Sea) until it is extension_km from the mainland."""
+def maritime_extension_utm(land_line, epsg, ref, extension_km, at_start=False):
+    """Continue the land border along the Natural Earth maritime border line that starts at one
+    of its ends (e.g. down the Kra estuary into the Andaman Sea) until it is extension_km from
+    the mainland. Returns the sea line running from the land border outwards, or None."""
     if extension_km <= 0:
         return None
+    end = Point(land_line.coords[0 if at_start else -1])
     m = gpd.read_file(SRC / "ne_maritime/ne_10m_admin_0_boundary_lines_maritime_indicator.shp",
                       bbox=C.REGION_BBOX).to_crs(epsg)
-    end = Point(land_line.coords[-1])
     lines = [q for g in m.geometry for q in getattr(g, "geoms", [g])]
     sea = min(lines, key=lambda q: q.distance(end))
     if sea.distance(end) > 3000:
-        print("  WARNING no maritime border line starts at the end of the land border")
+        if ref.coast_distance_km(end, epsg) < 3:  # the border reaches the coast here
+            lon, lat = to_wgs(epsg).transform(end.x, end.y)
+            print(f"  NOTE border meets the coast at {lat:.3f}, {lon:.3f} but Natural Earth has no "
+                  "maritime border line there; not extended")
         return None
     if Point(sea.coords[0]).distance(end) > Point(sea.coords[-1]).distance(end):
         sea = LineString(list(sea.coords)[::-1])
@@ -385,10 +389,20 @@ def frange(a, b, s):
 
 def layer_border(ref, cfg):
     land_line, epsg, nparts = load_border_utm(cfg["countries"])
-    sea_line = maritime_extension_utm(land_line, epsg, ref, cfg["sea_extension_km"])
+    if cfg.get("start") == "west" and land_line.coords[0][0] > land_line.coords[-1][0]:
+        land_line = LineString(list(land_line.coords)[::-1])
+    # a border can reach the sea at either end (TH-MM, TH-KH at the end; TH-MY at the start)
+    sea_start = maritime_extension_utm(land_line, epsg, ref, cfg["sea_extension_km"], at_start=True)
+    sea_end = maritime_extension_utm(land_line, epsg, ref, cfg["sea_extension_km"])
+    coords = list(land_line.coords)
+    if sea_start:
+        coords = list(sea_start.coords)[::-1][:-1] + coords
+    if sea_end:
+        coords = coords + list(sea_end.coords)[1:]
+    line = LineString(coords)
     land_km = land_line.length / 1000
-    sea_km = sea_line.length / 1000 if sea_line else 0.0
-    line = LineString(list(land_line.coords) + list(sea_line.coords)[1:]) if sea_line else land_line
+    start_m = sea_start.length if sea_start else 0.0
+    sea_km = (start_m + (sea_end.length if sea_end else 0.0)) / 1000
     print(f"  border: {land_km:.1f} km land ({nparts} part(s)) + {sea_km:.1f} km maritime, UTM EPSG:{epsg}")
     inv = to_wgs(epsg).transform
     feats = []
@@ -398,8 +412,10 @@ def layer_border(ref, cfg):
         else:
             pt = line.interpolate(d)
         lon, lat = inv(pt.x, pt.y)
-        section = "land" if d <= land_line.length + 1 else "maritime"
-        extra = {"group": cfg["group"], "along_border_km": round(d / 1000, 1), "border_section": section}
+        on_land = start_m - 1 <= d <= start_m + land_line.length + 1
+        section = "land" if on_land else "maritime"
+        extra = {"group": cfg["group"], "along_border_km": round(d / 1000, 1),
+                 "along_from": cfg["start_label"], "border_section": section}
         if section == "maritime":
             extra["maritime_label"] = cfg["sea_label"]
         f, _, _ = make_square(lon, lat, ref, cfg["key"], f"{cfg['id_prefix']}-{k:03d}", extra)
@@ -407,7 +423,7 @@ def layer_border(ref, cfg):
 
     def wgs(g):
         return [[round(x, 5), round(y, 5)] for x, y in (inv(*c) for c in g.coords)] if g else []
-    return feats, land_km, sea_km, wgs(land_line), wgs(sea_line)
+    return feats, land_km, sea_km, wgs(land_line), [wgs(g) for g in (sea_start, sea_end) if g]
 
 
 # --------------------------------------------------------------------------- enrichment (cached)
