@@ -7,7 +7,7 @@ A web map of Thailand and the surrounding countries that works like Google Maps 
 3. **Point square**: one square centred on 14.722987, 100.873950.
 4. **Thailand–Myanmar border**: north-up squares centred on the border line, running from north to south, with about 5 km on each side of the line. Past the end of the land border, at the head of the Kra River estuary, the squares follow Natural Earth's maritime border line down the estuary and out to 12 nm (22.2 km, set by `BORDER_SEA_EXTENSION_KM`) from the mainland.
 
-Hovering over a square shows its location, province and district (in English and Thai), land/sea %, the countries it covers, elevation or water depth, and the distance to the coast or port. Clicking a square pins the details, including its corners and UTM coordinates. Each layer has a summary card showing the number of squares, total area, square size and the layer's overall extent. The base maps are street, satellite, topographic (with contours) and light. The overlays are contour lines, hillshade relief, labels, the border line and markers.
+Hovering over a square shows its location, province and district (in English and Thai), land/sea %, the countries it covers, elevation or water depth, and the distance to the coast or port. Clicking a square pins the details, including its corners and UTM coordinates. Each layer has a summary card showing the number of squares, total area, square size and the layer's overall extent. The base maps are street, satellite, topographic (with contours) and light grey. The overlays are contour lines, hillshade relief, labels, the border line and markers.
 
 ## Run
 
@@ -15,6 +15,37 @@ Hovering over a square shows its location, province and district (in English and
 python3 -m http.server -d web 8000     # then open http://localhost:8000
 ```
 (You can also open `web/index.html` directly, because the data is loaded from `web/data/layers.js`.)
+
+## Deploy to Cloudflare Pages
+
+The site is fully static. Everything it needs is in `web/`, including the generated data, so Cloudflare Pages has nothing to build. There are two ways to deploy it.
+
+**Git integration (deploys automatically on every push):**
+
+1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Pages → Connect to Git**.
+2. Pick the `spacemap-price-demo` repository.
+3. Set:
+   - Production branch: `main`
+   - Framework preset: `None`
+   - Build command: *(leave empty)*
+   - Build output directory: `web`
+
+**Direct upload from your machine:**
+
+```
+npx wrangler login
+npx wrangler pages deploy        # reads wrangler.toml (output dir = web)
+```
+
+Before deploying, you can preview the site with Cloudflare's local server, which applies the same headers as production:
+
+```
+npx wrangler pages dev           # http://localhost:8788
+```
+
+Related files:
+- `wrangler.toml` holds the Pages project name and output directory.
+- `web/_headers` sets the security headers and caching. The Content-Security-Policy only allows the map tile hosts the app uses: OpenStreetMap, OpenTopoMap and Esri. If you add a new base map, add its host to `img-src`.
 
 ## Rebuild the data
 

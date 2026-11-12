@@ -14,7 +14,7 @@
   const BASEMAPS = {
     osm: {
       label: "Street map",
-      layer: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      layer: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19, attribution: "© OpenStreetMap contributors",
       }),
     },
@@ -32,8 +32,8 @@
     },
     light: {
       label: "Light",
-      layer: L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-        maxZoom: 19, subdomains: "abcd", attribution: "© OpenStreetMap contributors © CARTO",
+      layer: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
+        maxZoom: 16, attribution: "Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors",
       }),
     },
   };
