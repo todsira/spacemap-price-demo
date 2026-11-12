@@ -1,6 +1,6 @@
 # Thailand GIS Squares
 
-A web map of Thailand and the surrounding countries that works like Google Maps and uses only free data and tools: Leaflet, OpenStreetMap, Natural Earth, Esri World Imagery and OpenTopoMap. It shows switchable layers of red **10 × 10 km squares**:
+A web map of Thailand and the surrounding countries that works like Google Maps and uses only free data and tools: Leaflet, OpenStreetMap, Natural Earth, Esri World Imagery and OpenTopoMap. It shows switchable layers of **10 × 10 km squares**, each layer in its own colour (set in `build/config.py`):
 
 1. **Port squares**: one square centred on each of the 4 main ports: ท่าเรือแหลมฉบัง, ท่าเรือมาบตาพุด, ท่าเรือสัตหีบ and ท่าเรือน้ำลึกสงขลา.
 2. **Port sea blocks**: a 30 × 30 km block of 3 × 3 squares for each port. The block extends 30 km out to sea and is 30 km wide, centred on the port. Each column of 3 squares slides along the seaward direction to sit as close to the mainland as possible, with each square overlapping the mainland by at most 10% (`SEA_MAX_MAINLAND_FRACTION`). Islands are ignored, and blocks may overlap (Sattahip / Map Ta Phut).

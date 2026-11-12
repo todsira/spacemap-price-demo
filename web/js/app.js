@@ -1,7 +1,6 @@
 /* Thailand GIS Squares — Leaflet front end. Data comes from data/layers.js (window.GIS_DATA). */
 (function () {
   const DATA = window.GIS_DATA;
-  const RED = "#d7263d";
 
   const wide = window.matchMedia("(min-width: 701px)").matches;
   const PAD = wide ? { paddingTopLeft: [360, 20], paddingBottomRight: [20, 20] } : { padding: [20, 20] };
@@ -81,9 +80,14 @@
     pane: "labels", maxZoom: 19, attribution: "Labels © Esri",
   });
   const toLatLng = (line) => line.map(([lon, lat]) => [lat, lon]);
+  // dark dashed line on a light halo, so it reads on both street and satellite maps
+  const borderStyle = (dash) => [
+    { color: "#ffffff", weight: 4, opacity: 0.6, interactive: false },
+    { color: "#1f2937", weight: 1.8, dashArray: dash, interactive: false },
+  ];
   const borderLine = L.layerGroup(DATA.border_lines.flatMap((b) => [
-    L.polyline(toLatLng(b.land), { color: "#7a1fa2", weight: 2, dashArray: "6 4", interactive: false }),
-    ...b.sea.map((line) => L.polyline(toLatLng(line), { color: "#7a1fa2", weight: 2, dashArray: "2 5", interactive: false })),
+    ...borderStyle("6 4").map((st) => L.polyline(toLatLng(b.land), st)),
+    ...b.sea.flatMap((line) => borderStyle("2 5").map((st) => L.polyline(toLatLng(line), st))),
   ]));
   const portMarkers = L.layerGroup(DATA.ports.map((p) =>
     L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "port-icon", iconSize: [12, 12] }), zIndexOffset: 1000 })
@@ -173,7 +177,7 @@
 
   function infoHtml(p, full) {
     return `<div class="tip">
-      <span class="tag">${LAYER_TAG[p.layer] || p.layer}</span>
+      <span class="tag" style="color:${LAYER_COLOR[p.layer] || "inherit"}">${LAYER_TAG[p.layer] || p.layer}</span>
       <h3>${esc(p.id)}</h3>
       <p class="place">${placeLine(p)}</p>
       <table>${rows(p, full)}</table>
@@ -182,12 +186,14 @@
   }
 
   // ------------------------------------------------------------------ square layers
-  const baseStyle = { color: RED, weight: 2, fillColor: RED, fillOpacity: 0.22 };
+  const LAYER_COLOR = Object.fromEntries(DATA.layers.map((l) => [l.key, l.color]));
+  const styleFor = (color) => ({ color, weight: 2, fillColor: color, fillOpacity: 0.22 });
   const hoverStyle = { weight: 3.5, fillOpacity: 0.45 };
   const cardsBox = document.getElementById("layer-cards");
   const squareLayers = {};
 
   DATA.layers.forEach((L0) => {
+    const baseStyle = styleFor(L0.color);
     const gj = L.geoJSON(L0.geojson, {
       style: () => baseStyle,
       onEachFeature: (f, lyr) => {
@@ -200,6 +206,8 @@
     squareLayers[L0.key] = gj;
     cardsBox.appendChild(makeCard(L0, gj));
   });
+  // keep the single port / point squares visible above the larger blocks around them
+  ["ports", "points"].forEach((k) => squareLayers[k] && squareLayers[k].bringToFront());
 
   function makeCard(L0, gj) {
     const s = L0.summary;
@@ -208,7 +216,7 @@
     const id = `cb-${L0.key}`;
     const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
     let stats =
-      stat("Red squares", num(s.count)) +
+      stat("Squares", num(s.count)) +
       stat("Total area", `${num(s.total_area_km2)} <small>km²</small>`) +
       stat("Each square", `${s.square_size_km} <small>km</small>`) +
       stat("Layer extent (W × H)", `${num(s.extent_km.width_ew, 1)} × ${num(s.extent_km.height_ns, 1)} <small>km</small>`);
@@ -239,7 +247,7 @@
 
     card.innerHTML = `
       <div class="card-head">
-        <label for="${id}"><input type="checkbox" id="${id}" checked><span class="swatch"></span>${esc(L0.title)}</label>
+        <label for="${id}"><input type="checkbox" id="${id}" checked style="accent-color:${L0.color}"><span class="swatch" style="border-color:${L0.color};background:${L0.color}38"></span>${esc(L0.title)}</label>
         <button class="zoom-btn" type="button">Zoom</button>
       </div>
       <button class="card-meta" type="button" aria-expanded="false">

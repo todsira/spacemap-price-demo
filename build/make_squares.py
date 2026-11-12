@@ -586,18 +586,18 @@ def main():
 
     port_groups = [(p["id"], f"{p['name_th']} ({p['name_en']})") for p in C.PORTS]
     layers = [
-        {"key": "ports", "title": "1. Port squares", "file": "layer1_ports.geojson", "features": l1,
+        {"key": "ports", "color": C.LAYER_COLORS["ports"], "title": "1. Port squares", "file": "layer1_ports.geojson", "features": l1,
          "summary": summarize(l1, port_groups)},
-        {"key": "sea_blocks", "title": "2. Port sea blocks (30 x 30 km)", "file": "layer2_sea_blocks.geojson",
+        {"key": "sea_blocks", "color": C.LAYER_COLORS["sea_blocks"], "title": "2. Port sea blocks (30 x 30 km)", "file": "layer2_sea_blocks.geojson",
          "features": l2,
          "summary": summarize(l2, port_groups,
                               max_mainland_pct=round(C.SEA_MAX_MAINLAND_FRACTION * 100),
                               block_size_km=f"{C.SEA_BLOCK_ACROSS * C.SQUARE_KM:g} x "
                                             f"{C.SEA_BLOCK_OUT * C.SQUARE_KM:g}")},
-        {"key": "points", "title": "3. Point 14.722987, 100.873950", "file": "layer3_point.geojson",
+        {"key": "points", "color": C.LAYER_COLORS["points"], "title": "3. Point 14.722987, 100.873950", "file": "layer3_point.geojson",
          "features": l3, "summary": summarize(l3)},
     ] + [
-        {"key": cfg["key"], "title": cfg["title"], "file": cfg["file"], "features": feats,
+        {"key": cfg["key"], "color": cfg["color"], "title": cfg["title"], "file": cfg["file"], "features": feats,
          "summary": summarize(feats, border_length_km=round(land_km + sea_km, 1),
                               land_border_km=round(land_km, 1),
                               sea_extension_km=round(sea_km, 1),
@@ -625,7 +625,7 @@ def main():
         "points": C.POINTS,
         "border_lines": [{"key": cfg["key"], "group": cfg["group"], "land": line_land, "sea": line_sea}
                          for cfg, _, _, _, line_land, line_sea in borders],
-        "layers": [{k: L[k] for k in ("key", "title", "file", "summary")}
+        "layers": [{k: L[k] for k in ("key", "color", "title", "file", "summary")}
                    | {"geojson": {"type": "FeatureCollection", "features": L["features"]}} for L in layers],
     }
     (OUT / "layers.js").write_text("window.GIS_DATA = " + json.dumps(bundle, ensure_ascii=False) + ";\n")

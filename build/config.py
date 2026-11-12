@@ -2,6 +2,15 @@
 
 SQUARE_KM = 10.0
 
+# Square colours for layers 1-3 (layers 4-7 set theirs in BORDERS below). Chosen to stay
+# distinct from each other and readable on the street, satellite and topographic maps,
+# avoiding the greens of forest and the blues of sea.
+LAYER_COLORS = {
+    "ports": "#e11d48",       # 1. crimson
+    "sea_blocks": "#f97316",  # 2. orange
+    "points": "#eab308",      # 3. gold
+}
+
 # Item 1 + 2: main ports. Coordinates checked against OpenStreetMap (Nominatim).
 # `seaward` is the cardinal direction the 30 x 30 km sea block extends towards.
 PORTS = [
@@ -73,6 +82,7 @@ BORDERS = [
         "countries": ("Thailand", "Myanmar"),
         "sea_extension_km": 22.2,
         "sea_label": "Kra estuary / Andaman Sea",
+        "color": "#7c3aed",  # violet
         "start_label": "Golden Triangle (northern end)",
     },
     {
@@ -84,6 +94,7 @@ BORDERS = [
         "countries": ("Thailand", "Cambodia"),
         "sea_extension_km": 22.2,
         "sea_label": "Gulf of Thailand (median line; boundary is disputed)",
+        "color": "#2563eb",  # blue
         "start_label": "Emerald Triangle (Laos tripoint)",
     },
     {
@@ -95,6 +106,7 @@ BORDERS = [
         "countries": ("Thailand", "Laos"),
         "sea_extension_km": 0,  # landlocked
         "sea_label": "",
+        "color": "#0d9488",  # teal
         "start_label": "Golden Triangle (northern end)",
     },
     {
@@ -107,6 +119,7 @@ BORDERS = [
         "start": "west",  # runs west -> east, from the Andaman Sea side to the Gulf of Thailand
         "sea_extension_km": 22.2,
         "sea_label": "Andaman Sea / Strait of Malacca (median line)",
+        "color": "#c026d3",  # fuchsia
         "start_label": "12 nm offshore in the Andaman Sea (western end)",
     },
 ]
