@@ -25,11 +25,21 @@ import stamp_version  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "build" / "sources"
 OUT = ROOT / "web" / "data"
-HALF = C.SQUARE_KM * 1000 / 2
+# Square size of the mode being built (see C.MODES); set with set_square_km()
+SQ_KM = C.SQUARE_KM
+HALF = SQ_KM * 1000 / 2
 GEOD = Geod(ellps="WGS84")
+# --cache-only: fill attributes from the cached API results only, without any new requests
+CACHE_ONLY = "--cache-only" in sys.argv
 
 DIRS = {"N": (0, 1), "E": (1, 0), "S": (0, -1), "W": (-1, 0)}
 DIR_NAMES = {"N": "north", "E": "east", "S": "south", "W": "west"}
+
+
+def set_square_km(km):
+    global SQ_KM, HALF
+    SQ_KM = km
+    HALF = km * 1000 / 2
 
 
 # --------------------------------------------------------------------------- projections
@@ -159,8 +169,8 @@ def make_square(lon, lat, ref, layer, sid, extra=None):
         "center_lat": round(lat, 6),
         "center_lon": round(lon, 6),
         "corners": {k: [round(v[1], 6), round(v[0], 6)] for k, v in corners_wgs.items()},
-        "size_km": f"{C.SQUARE_KM:g} x {C.SQUARE_KM:g}",
-        "area_km2": round(C.SQUARE_KM ** 2, 2),
+        "size_km": f"{SQ_KM:g} x {SQ_KM:g}",
+        "area_km2": round(SQ_KM ** 2, 2),
         "utm_zone": f"{epsg % 100}{'N' if epsg < 32700 else 'S'}",
         "utm_e": round(e),
         "utm_n": round(n),
@@ -200,7 +210,7 @@ def sea_block_centers(p, direction, offsets_m=None):
     """Centres of the block cells. offsets_m[j] slides column j seaward (+) or landward (-)."""
     ox, oy = DIRS[direction]
     ax, ay = -oy, ox  # perpendicular
-    step = C.SQUARE_KM * 1000
+    step = SQ_KM * 1000
     out = []
     for i in range(C.SEA_BLOCK_OUT):
         for j in range(C.SEA_BLOCK_ACROSS):
@@ -216,7 +226,7 @@ def column_offset(p, j, mainland, epsg):
     SEA_MAX_MAINLAND_FRACTION mainland overlap. Islands are not part of `mainland`."""
     ox, oy = DIRS[p["seaward"]]
     ax, ay = -oy, ox
-    step = C.SQUARE_KM * 1000
+    step = SQ_KM * 1000
     e0, n0 = to_utm(epsg).transform(p["lon"], p["lat"])
     across = step * (j - (C.SEA_BLOCK_ACROSS - 1) / 2)
 
@@ -346,7 +356,7 @@ def maritime_extension_utm(land_line, epsg, ref, extension_km, at_start=False):
 
 
 def border_centers(line):
-    step = C.SQUARE_KM * 1000
+    step = SQ_KM * 1000
     L = line.length
     if C.BORDER_STEP_MODE == "along":
         return [d for d in frange(0, L, step)]
@@ -444,6 +454,8 @@ def enrich_geocode(features):
     todo = [(f, lang) for f in features for lang in ("en", "th")
             if "error" in cache.get(f"{f['properties']['center_lat']},{f['properties']['center_lon']},{lang}",
                                     {"error": "missing"})]
+    if CACHE_ONLY:
+        todo = []
     for n, (f, lang) in enumerate(todo, 1):
         pr = f["properties"]
         key = f"{pr['center_lat']},{pr['center_lon']},{lang}"
@@ -461,7 +473,8 @@ def enrich_geocode(features):
             print(f"    geocode {n}/{len(todo)}")
             save_cache("geocode_cache.json", cache)
         time.sleep(1.1)  # Nominatim usage policy: max 1 request / second
-    save_cache("geocode_cache.json", cache)
+    if todo:
+        save_cache("geocode_cache.json", cache)
 
     for f in features:
         pr = f["properties"]
@@ -486,7 +499,8 @@ def enrich_elevation(features):
     sess.headers["User-Agent"] = C.USER_AGENT
     for dataset, want_land in (("srtm90m", True), ("gebco2020", False)):
         pts = [f["properties"] for f in features if (f["properties"]["surface"] == "land") == want_land]
-        todo = [p for p in pts if f"{dataset}:{p['center_lat']},{p['center_lon']}" not in cache]
+        todo = [] if CACHE_ONLY else [p for p in pts
+                                      if f"{dataset}:{p['center_lat']},{p['center_lon']}" not in cache]
         for k in range(0, len(todo), 100):
             chunk = todo[k:k + 100]
             locs = "|".join(f"{p['center_lat']},{p['center_lon']}" for p in chunk)
@@ -530,8 +544,8 @@ def summarize(features, groups=None, **extra):
     w, h, bounds = extent_km(features)
     s = {
         "count": len(features),
-        "square_size_km": f"{C.SQUARE_KM:g} x {C.SQUARE_KM:g}",
-        "total_area_km2": round(len(features) * C.SQUARE_KM ** 2, 1),
+        "square_size_km": f"{SQ_KM:g} x {SQ_KM:g}",
+        "total_area_km2": round(len(features) * SQ_KM ** 2, 1),
         "covered_area_km2": union_area_km2(features),
         "extent_km": {"width_ew": w, "height_ns": h},
         "bounds": bounds,
@@ -545,7 +559,7 @@ def summarize(features, groups=None, **extra):
                 continue
             gw, gh, _ = extent_km(gf)
             s["groups"].append({"id": gid, "label": label, "count": len(gf),
-                                "total_area_km2": round(len(gf) * C.SQUARE_KM ** 2, 1),
+                                "total_area_km2": round(len(gf) * SQ_KM ** 2, 1),
                                 "extent_km": {"width_ew": gw, "height_ns": gh}})
     s.update(extra)
     return s
@@ -557,14 +571,17 @@ def check_sizes(features):
         c = f["properties"]["corners"]
         (sw_lat, sw_lon), (se_lat, se_lon), (nw_lat, nw_lon) = c["SW"], c["SE"], c["NW"]
         for a in (GEOD.inv(sw_lon, sw_lat, se_lon, se_lat)[2], GEOD.inv(sw_lon, sw_lat, nw_lon, nw_lat)[2]):
-            worst = max(worst, abs(a / 1000 - C.SQUARE_KM))
+            worst = max(worst, abs(a / 1000 - SQ_KM))
     return worst
 
 
 # --------------------------------------------------------------------------- main
-def main():
-    OUT.mkdir(parents=True, exist_ok=True)
-    ref = RefData()
+def build_mode(ref, mode):
+    """Generate, enrich and write all layers for one square size; returns the mode bundle."""
+    set_square_km(mode["square_km"])
+    print(f"=== {mode['label']}: {SQ_KM:g} x {SQ_KM:g} km squares ===")
+    out = OUT / mode["key"]
+    out.mkdir(parents=True, exist_ok=True)
 
     print("layer 1: port squares")
     l1 = layer_ports(ref)
@@ -584,18 +601,19 @@ def main():
         enrich_geocode(all_feats)
         enrich_elevation(all_feats)
 
+    block = f"{C.SEA_BLOCK_ACROSS * SQ_KM:g} x {C.SEA_BLOCK_OUT * SQ_KM:g}"
     port_groups = [(p["id"], f"{p['name_th']} ({p['name_en']})") for p in C.PORTS]
     layers = [
-        {"key": "ports", "color": C.LAYER_COLORS["ports"], "title": "1. Port squares", "file": "layer1_ports.geojson", "features": l1,
-         "summary": summarize(l1, port_groups)},
-        {"key": "sea_blocks", "color": C.LAYER_COLORS["sea_blocks"], "title": "2. Port sea blocks (30 x 30 km)", "file": "layer2_sea_blocks.geojson",
-         "features": l2,
+        {"key": "ports", "color": C.LAYER_COLORS["ports"], "title": "1. Port squares",
+         "file": "layer1_ports.geojson", "features": l1, "summary": summarize(l1, port_groups)},
+        {"key": "sea_blocks", "color": C.LAYER_COLORS["sea_blocks"], "title": f"2. Port sea blocks ({block} km)",
+         "file": "layer2_sea_blocks.geojson", "features": l2,
          "summary": summarize(l2, port_groups,
                               max_mainland_pct=round(C.SEA_MAX_MAINLAND_FRACTION * 100),
-                              block_size_km=f"{C.SEA_BLOCK_ACROSS * C.SQUARE_KM:g} x "
-                                            f"{C.SEA_BLOCK_OUT * C.SQUARE_KM:g}")},
-        {"key": "points", "color": C.LAYER_COLORS["points"], "title": "3. Point 14.722987, 100.873950", "file": "layer3_point.geojson",
-         "features": l3, "summary": summarize(l3)},
+                              block_grid=f"{C.SEA_BLOCK_ACROSS} x {C.SEA_BLOCK_OUT}",
+                              block_size_km=block)},
+        {"key": "points", "color": C.LAYER_COLORS["points"], "title": "3. Point 14.722987, 100.873950",
+         "file": "layer3_point.geojson", "features": l3, "summary": summarize(l3)},
     ] + [
         {"key": cfg["key"], "color": cfg["color"], "title": cfg["title"], "file": cfg["file"], "features": feats,
          "summary": summarize(feats, border_length_km=round(land_km + sea_km, 1),
@@ -611,7 +629,7 @@ def main():
 
     for L in layers:
         fc = {"type": "FeatureCollection", "name": L["key"], "features": L["features"]}
-        (OUT / L["file"]).write_text(json.dumps(fc, ensure_ascii=False))
+        (out / L["file"]).write_text(json.dumps(fc, ensure_ascii=False))
         s = L["summary"]
         print(f"  {L['title']}: {s['count']} squares, {s['total_area_km2']} km2 "
               f"(covered {s['covered_area_km2']} km2), extent {s['extent_km']['width_ew']} x "
@@ -619,14 +637,34 @@ def main():
     worst = max(f["properties"]["mainland_pct"] for f in l2)
     print(f"  sea blocks: max mainland overlap {worst}%")
 
+    border_lines = [{"key": cfg["key"], "group": cfg["group"], "land": line_land, "sea": line_sea}
+                    for cfg, _, _, _, line_land, line_sea in borders]
+    return {
+        "key": mode["key"],
+        "label": mode["label"],
+        "square_km": SQ_KM,
+        "layers": [{k: L[k] for k in ("key", "color", "title", "file", "summary")}
+                   | {"file": f"{mode['key']}/{L['file']}",
+                      "geojson": {"type": "FeatureCollection", "features": L["features"]}} for L in layers],
+    }, border_lines
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    ref = RefData()
+    modes, border_lines = [], None
+    for mode in C.MODES:
+        bundle, border_lines = build_mode(ref, mode)  # border lines do not depend on square size
+        modes.append(bundle)
+    for old in OUT.glob("layer*.geojson"):  # pre-mode output location
+        old.unlink()
+
     bundle = {
         "generated": time.strftime("%Y-%m-%d %H:%M"),
         "ports": C.PORTS,
         "points": C.POINTS,
-        "border_lines": [{"key": cfg["key"], "group": cfg["group"], "land": line_land, "sea": line_sea}
-                         for cfg, _, _, _, line_land, line_sea in borders],
-        "layers": [{k: L[k] for k in ("key", "color", "title", "file", "summary")}
-                   | {"geojson": {"type": "FeatureCollection", "features": L["features"]}} for L in layers],
+        "border_lines": border_lines,
+        "modes": modes,
     }
     (OUT / "layers.js").write_text("window.GIS_DATA = " + json.dumps(bundle, ensure_ascii=False) + ";\n")
     print(f"wrote {OUT / 'layers.js'}")

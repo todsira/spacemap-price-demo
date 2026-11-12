@@ -10,6 +10,15 @@ A web map of Thailand and the surrounding countries that works like Google Maps 
 6. **Thailand–Laos border**: built the same way as layer 4. The squares run from the Golden Triangle to the Emerald Triangle, including the Mekong sections. The border is landlocked, so there is no sea extension.
 7. **Thailand–Malaysia border**: built the same way, but running west to east. It starts 12 nm offshore on Natural Earth's median line in the Andaman Sea, crosses the land border at Satun/Perlis, and ends at the Golok river mouth at Tak Bai. Natural Earth has no maritime line on the Gulf of Thailand side, so the squares stop at the coast there.
 
+A switch at the top of the panel chooses the square size:
+
+| Mode | Square size | What changes |
+|---|---|---|
+| **Hi Res Optical** | 10 × 10 km | The layers as described above. |
+| **Hi Res SAR** | 5 × 5 km | Same layers, same rules and colours, with smaller squares. Ports and the point get one 5 km square each. Sea blocks keep the 3 × 3 grid, so each block is 15 × 15 km. Border squares sit 2.5 km either side of the line, stepping every 5 km, so there are about twice as many covering about half the area. |
+
+The modes are listed in `MODES` in `build/config.py`, and the build generates every mode. The chosen mode is part of the URL, for example `#13.0,100.9,9/osm/sar`.
+
 Hovering over a square shows its location, province and district (in English and Thai), land/sea %, the countries it covers, elevation or water depth, and the distance to the coast or port. Clicking a square pins the details, including its corners and UTM coordinates. Each layer has a summary card showing the number of squares, total area, square size and the layer's overall extent. The base maps are street, satellite, topographic (with contours) and light grey. The overlays are contour lines, hillshade relief, labels, the border line and markers.
 
 ## Run
@@ -49,7 +58,7 @@ Related files:
 ```
 python3 -m venv .venv && .venv/bin/pip install -r build/requirements.txt
 .venv/bin/python build/fetch_sources.py     # downloads OSM land polygons + Natural Earth (~30 MB)
-.venv/bin/python build/make_squares.py      # add --no-enrich to skip the geocode/elevation API calls
+.venv/bin/python build/make_squares.py      # --no-enrich skips place/elevation lookups; --cache-only uses saved results only
 ```
 
 `make_squares.py` finishes by running `build/stamp_version.py`. That script adds a content hash (`?v=…`) to the CSS, JS and data links in `index.html`, so browsers always load the latest files after a deploy. If you edit `web/js/app.js` or `web/css/style.css` by hand, run `.venv/bin/python build/stamp_version.py` before committing.
@@ -60,4 +69,4 @@ Each square is built in a transverse Mercator projection centred on the square i
 
 The reverse-geocode results (Nominatim, 1 request per second) and the elevation results (OpenTopoData) are cached in `build/sources/`.
 
-The files `web/data/layer*.geojson` are plain GeoJSON in EPSG:4326 and can be loaded straight into QGIS.
+The files `web/data/optical/layer*.geojson` and `web/data/sar/layer*.geojson` are plain GeoJSON in EPSG:4326 and can be loaded straight into QGIS.

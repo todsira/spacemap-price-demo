@@ -54,13 +54,16 @@
     btn.onclick = () => setBase(key);
     baseBox.appendChild(btn);
   });
-  // URL hash "#lat,lon,zoom/basemap" restores a view (and is kept up to date for sharing)
-  const hm = location.hash.match(/^#(-?[\d.]+),(-?[\d.]+),(\d+)(?:\/(\w+))?/);
+  // URL hash "#lat,lon,zoom/basemap/mode" restores a view (and is kept up to date for sharing)
+  const hm = location.hash.match(/^#(-?[\d.]+),(-?[\d.]+),(\d+)(?:\/(\w+))?(?:\/(\w+))?/);
+  const MODES = Object.fromEntries(DATA.modes.map((m) => [m.key, m]));
+  let currentMode = hm && MODES[hm[5]] ? hm[5] : DATA.modes[0].key;
   if (hm) map.setView([+hm[1], +hm[2]], +hm[3]);
   setBase(hm && BASEMAPS[hm[4]] ? hm[4] : "osm");
   function writeHash() {
     const c = map.getCenter();
-    history.replaceState(null, "", `#${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}/${currentBase}`);
+    history.replaceState(null, "",
+      `#${c.lat.toFixed(4)},${c.lng.toFixed(4)},${map.getZoom()}/${currentBase}/${currentMode}`);
   }
   map.on("moveend", writeHash);
 
@@ -186,33 +189,60 @@
   }
 
   // ------------------------------------------------------------------ square layers
-  const LAYER_COLOR = Object.fromEntries(DATA.layers.map((l) => [l.key, l.color]));
+  const LAYER_COLOR = Object.fromEntries(DATA.modes[0].layers.map((l) => [l.key, l.color]));
   const styleFor = (color) => ({ color, weight: 2, fillColor: color, fillOpacity: 0.22 });
   const hoverStyle = { weight: 3.5, fillOpacity: 0.45 };
   const cardsBox = document.getElementById("layer-cards");
-  const squareLayers = {};
+  let squareLayers = {};
+  const layerOff = new Set();  // layer keys switched off; kept when changing mode
+  const layerOpen = new Set(); // layer keys with "Details" expanded; kept when changing mode
 
-  DATA.layers.forEach((L0) => {
-    const baseStyle = styleFor(L0.color);
-    const gj = L.geoJSON(L0.geojson, {
-      style: () => baseStyle,
-      onEachFeature: (f, lyr) => {
-        lyr.bindTooltip(() => infoHtml(f.properties, false), { sticky: true, className: "sq-tip", direction: "auto", opacity: 1 });
-        lyr.bindPopup(() => infoHtml(f.properties, true), { maxWidth: 340 });
-        lyr.on("mouseover", () => { lyr.setStyle(hoverStyle); lyr.bringToFront(); });
-        lyr.on("mouseout", () => lyr.setStyle(baseStyle));
-      },
-    }).addTo(map);
-    squareLayers[L0.key] = gj;
-    cardsBox.appendChild(makeCard(L0, gj));
+  // Main switch: the same layers built with a different square size
+  const modeBox = document.getElementById("modes");
+  DATA.modes.forEach((m) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.key = m.key;
+    btn.textContent = m.label;
+    btn.onclick = () => renderMode(m.key);
+    modeBox.appendChild(btn);
   });
-  // keep the single port / point squares visible above the larger blocks around them
-  ["ports", "points"].forEach((k) => squareLayers[k] && squareLayers[k].bringToFront());
 
-  function makeCard(L0, gj) {
+  function renderMode(key) {
+    const mode = MODES[key];
+    currentMode = key;
+    Object.values(squareLayers).forEach((gj) => map.removeLayer(gj));
+    squareLayers = {};
+    cardsBox.replaceChildren();
+    mode.layers.forEach((L0) => {
+      const baseStyle = styleFor(L0.color);
+      const gj = L.geoJSON(L0.geojson, {
+        style: () => baseStyle,
+        onEachFeature: (f, lyr) => {
+          lyr.bindTooltip(() => infoHtml(f.properties, false), { sticky: true, className: "sq-tip", direction: "auto", opacity: 1 });
+          lyr.bindPopup(() => infoHtml(f.properties, true), { maxWidth: 340 });
+          lyr.on("mouseover", () => { lyr.setStyle(hoverStyle); lyr.bringToFront(); });
+          lyr.on("mouseout", () => lyr.setStyle(baseStyle));
+        },
+      });
+      if (!layerOff.has(L0.key)) gj.addTo(map);
+      squareLayers[L0.key] = gj;
+      cardsBox.appendChild(makeCard(L0, gj, mode));
+    });
+    // keep the single port / point squares visible above the larger blocks around them
+    ["ports", "points"].forEach((k) => map.hasLayer(squareLayers[k]) && squareLayers[k].bringToFront());
+
+    const km = num(mode.square_km);
+    modeBox.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.key === key));
+    document.getElementById("mode-note").textContent = `${km} × ${km} km squares`;
+    document.getElementById("subtitle").textContent = `${km} × ${km} km analysis grid · OpenStreetMap data`;
+    if (map._loaded) writeHash();
+  }
+
+  function makeCard(L0, gj, mode) {
     const s = L0.summary;
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = "card" + (layerOff.has(L0.key) ? " off" : "") + (layerOpen.has(L0.key) ? " open" : "");
     const id = `cb-${L0.key}`;
     const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
     let stats =
@@ -223,7 +253,7 @@
     if (s.border_length_km) {
       stats += stat("Border length", `${num(s.border_length_km, 1)} <small>km</small>`);
       stats += stat("Land + maritime", `${num(s.land_border_km, 1)} + ${num(s.sea_extension_km, 1)} <small>km</small>`);
-      stats += stat("Squares × 10 km", `${num(s.count * 10)} <small>km</small>`);
+      stats += stat(`Squares × ${num(mode.square_km)} km`, `${num(s.count * mode.square_km)} <small>km</small>`);
     }
     if (s.block_size_km) stats += stat("Block per port", `${s.block_size_km} <small>km</small>`);
     if (Math.abs(s.covered_area_km2 - s.total_area_km2) > 0.5) {
@@ -238,7 +268,7 @@
     }
     let note = "";
     if (s.max_mainland_pct != null) {
-      note = `<div class="note">Each column of 3 squares is slid as close to the mainland as possible, overlapping it by at most ${s.max_mainland_pct}%. Islands are ignored. Blocks may overlap (Sattahip / Map Ta Phut).</div>`;
+      note = `<div class="note">A ${s.block_grid} grid of ${s.square_size_km} km squares per port. Each column is slid as close to the mainland as possible, overlapping it by at most ${s.max_mainland_pct}%. Islands are ignored. Blocks may overlap (Sattahip / Map Ta Phut).</div>`;
     }
     if (s.step_mode === "chebyshev") {
       note = '<div class="note">North-up squares centred on the border line; each next square starts where the line leaves the previous one, so squares touch without overlapping.' +
@@ -247,10 +277,10 @@
 
     card.innerHTML = `
       <div class="card-head">
-        <label for="${id}"><input type="checkbox" id="${id}" checked style="accent-color:${L0.color}"><span class="swatch" style="border-color:${L0.color};background:${L0.color}38"></span>${esc(L0.title)}</label>
+        <label for="${id}"><input type="checkbox" id="${id}" ${layerOff.has(L0.key) ? "" : "checked"} style="accent-color:${L0.color}"><span class="swatch" style="border-color:${L0.color};background:${L0.color}38"></span>${esc(L0.title)}</label>
         <button class="zoom-btn" type="button">Zoom</button>
       </div>
-      <button class="card-meta" type="button" aria-expanded="false">
+      <button class="card-meta" type="button" aria-expanded="${layerOpen.has(L0.key)}">
         <span>${num(s.count)} ${s.count === 1 ? "square" : "squares"} · ${num(s.total_area_km2)} km²</span><span class="chev">Details</span>
       </button>
       <div class="card-body"><div class="stats">${stats}</div>${groups}${note}</div>`;
@@ -259,10 +289,12 @@
     meta.onclick = () => {
       const open = card.classList.toggle("open");
       meta.setAttribute("aria-expanded", open);
+      if (open) layerOpen.add(L0.key); else layerOpen.delete(L0.key);
     };
 
     card.querySelector("input").onchange = (e) => {
       if (e.target.checked) gj.addTo(map); else map.removeLayer(gj);
+      if (e.target.checked) layerOff.delete(L0.key); else layerOff.add(L0.key);
       card.classList.toggle("off", !e.target.checked);
     };
     card.querySelector(".zoom-btn").onclick = () => {
@@ -279,6 +311,8 @@
     return card;
   }
 
+  renderMode(currentMode);
+
   // ------------------------------------------------------------------ mouse coordinates, panel toggle
   const coordsEl = document.getElementById("coords");
   map.on("mousemove", (e) => (coordsEl.textContent = `${fmtLL(e.latlng.lat, e.latlng.lng)} · z${map.getZoom()}`));
@@ -293,5 +327,5 @@
 
   document.getElementById("foot").innerHTML =
     `Data built ${esc(DATA.generated)} · coastline: OSM land polygons · border &amp; countries: Natural Earth 10m · ` +
-    "places: Nominatim · elevation: SRTM / GEBCO via OpenTopoData. GeoJSON files in <code>web/data/</code> open directly in QGIS.";
+    "places: Nominatim · elevation: SRTM / GEBCO via OpenTopoData. GeoJSON files in <code>web/data/optical/</code> and <code>web/data/sar/</code> open directly in QGIS.";
 })();

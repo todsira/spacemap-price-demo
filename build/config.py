@@ -1,6 +1,12 @@
 """Inputs for make_squares.py. Edit coordinates / directions here and re-run the build."""
 
-SQUARE_KM = 10.0
+SQUARE_KM = 10.0  # default size; the build generates every mode in MODES
+
+# Main switch in the web app: the same layers built with different square sizes
+MODES = [
+    {"key": "optical", "label": "Hi Res Optical", "square_km": 10.0},
+    {"key": "sar", "label": "Hi Res SAR", "square_km": 5.0},
+]
 
 # Square colours for layers 1-3 (layers 4-7 set theirs in BORDERS below). Chosen to stay
 # distinct from each other and readable on the street, satellite and topographic maps,
@@ -49,8 +55,8 @@ PORTS = [
 ]
 
 # Item 2: sea block size (squares across x squares outward)
-SEA_BLOCK_ACROSS = 3  # 30 km wide, port at the middle
-SEA_BLOCK_OUT = 3     # 30 km out to sea
+SEA_BLOCK_ACROSS = 3  # squares across, port at the middle (30 km wide at 10 km squares)
+SEA_BLOCK_OUT = 3     # squares out to sea (30 km at 10 km squares, 15 km at 5 km)
 # Each column of the block slides along the seaward direction to sit as close to the
 # mainland as possible, while every square overlaps the mainland by at most this fraction.
 # Islands are ignored (squares may cover them).
