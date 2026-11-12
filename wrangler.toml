@@ -1,5 +1,8 @@
-# Cloudflare Pages project config. The site is fully static: no build step is needed
-# because the generated data in web/data/ is committed.
+# Cloudflare Workers (static assets) config, used by `npx wrangler deploy`.
+# The site is fully static: no build step is needed because the generated data in
+# web/data/ is committed. web/_headers is applied by Workers static assets.
 name = "spacemap-price-demo"
 compatibility_date = "2026-11-01"
-pages_build_output_dir = "web"
+
+[assets]
+directory = "./web"

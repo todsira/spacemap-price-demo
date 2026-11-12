@@ -16,35 +16,29 @@ python3 -m http.server -d web 8000     # then open http://localhost:8000
 ```
 (You can also open `web/index.html` directly, because the data is loaded from `web/data/layers.js`.)
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare
 
-The site is fully static. Everything it needs is in `web/`, including the generated data, so Cloudflare Pages has nothing to build. There are two ways to deploy it.
+The site is fully static. Everything it needs is in `web/`, including the generated data, so there is no build step. `wrangler.toml` deploys it as a Cloudflare **Worker with static assets**, using `[assets] directory = "./web"`.
 
 **Git integration (deploys automatically on every push):**
 
-1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Pages → Connect to Git**.
-2. Pick the `spacemap-price-demo` repository.
+1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a repository**.
+2. Pick `spacemap-price-demo`.
 3. Set:
-   - Production branch: `main`
-   - Framework preset: `None`
    - Build command: *(leave empty)*
-   - Build output directory: `web`
+   - Deploy command: `npx wrangler deploy`
 
 **Direct upload from your machine:**
 
 ```
 npx wrangler login
-npx wrangler pages deploy        # reads wrangler.toml (output dir = web)
+npx wrangler deploy
 ```
 
-Before deploying, you can preview the site with Cloudflare's local server, which applies the same headers as production:
-
-```
-npx wrangler pages dev           # http://localhost:8788
-```
+To preview locally with the same headers as production, run `npx wrangler dev`, then open http://localhost:8787.
 
 Related files:
-- `wrangler.toml` holds the Pages project name and output directory.
+- `wrangler.toml` holds the Worker name and the assets directory. The `name` must match the Worker's name in the dashboard.
 - `web/_headers` sets the security headers and caching. The Content-Security-Policy only allows the map tile hosts the app uses: OpenStreetMap, OpenTopoMap and Esri. If you add a new base map, add its host to `img-src`.
 
 ## Rebuild the data
